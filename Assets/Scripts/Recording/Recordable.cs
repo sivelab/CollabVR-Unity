@@ -21,6 +21,8 @@ public class Recordable : NetworkBehaviour
     private IDictionary<GameObject, GameObject> targetProxies;
     private float playbackStartTime;
     private float recordingStartTime;
+    private float playbackSpeed = 1f;
+    private bool paused = false;
 
     public ICollection<Recording> Recordings
     {
@@ -28,17 +30,7 @@ public class Recordable : NetworkBehaviour
         //set { recording = value; }
     }
 
-    private void OnDestroy()
-    {
-        // destroy proxy
-        if (isServer)
-        {
-            foreach (var proxy in targetProxies.Values)
-            {
-                NetworkServer.Destroy(proxy);
-            }
-        }
-    }
+    #region MonoBehavior
 
     private void Start()
     {
@@ -55,6 +47,8 @@ public class Recordable : NetworkBehaviour
         RecordingManager.Instance.EventPlayStop += HandlePlayStop;
         RecordingManager.Instance.EventRecordStart += HandleRecordStart;
         RecordingManager.Instance.EventRecordStop += HandleRecordStop;
+        RecordingManager.Instance.EventPlaybackSpeed += HandlePlaybackSpeedChange;
+        RecordingManager.Instance.EventPaused += HandlePaused;
 
         foreach (GameObject target in targets)
         {
@@ -108,6 +102,22 @@ public class Recordable : NetworkBehaviour
         }
     }
 
+    private void OnDestroy()
+    {
+        // destroy proxy
+        if (isServer)
+        {
+            foreach (var proxy in targetProxies.Values)
+            {
+                NetworkServer.Destroy(proxy);
+            }
+        }
+    }
+
+    #endregion
+
+    #region Event Handlers
+
     private void HandlePlayStart()
     {
         playbackStartTime = Time.realtimeSinceStartup;
@@ -149,16 +159,30 @@ public class Recordable : NetworkBehaviour
         StopCoroutine("Record");
     }
 
+    private void HandlePlaybackSpeedChange(float speed)
+    {
+        playbackSpeed = speed;
+    }
+
+    private void HandlePaused(bool value)
+    {
+        paused = value;
+    }
+
+    #endregion
+
+    #region Coroutines
+
     private IEnumerator Play()
     {
         // playback loop
-        while (true)
+        while (true && !paused)
         {
             foreach (var target in targets)
             {
-                var transformData = targetRecordings[target].Next(Time.realtimeSinceStartup - playbackStartTime);
+                var timestamp = (Time.realtimeSinceStartup - playbackStartTime) * playbackSpeed;
+                var transformData = targetRecordings[target].Next(timestamp, timestamp > playbackStartTime);
                 transformData.ToTransform(targetProxies[target].transform);
-
             }
             yield return null;
         }
@@ -192,4 +216,6 @@ public class Recordable : NetworkBehaviour
             yield return null;
         }
     }
+
+    #endregion
 }

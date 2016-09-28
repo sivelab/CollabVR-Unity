@@ -17,17 +17,27 @@ public class Recording
         currentPosition = 0;
     }
 
-    public TransformData Next(double timestamp)
+    /// <summary>
+    /// Get the next data point in the recording.
+    /// </summary>
+    /// <param name="timestamp">The time in the playback that we are at.</param>
+    /// <param name="forwards">Whether we are seeks forwards in time or not.</param>
+    /// <returns></returns>
+    public TransformData Next(double timestamp, bool forwards = true)
     {
-        if (currentPosition + 1 < data.Count - 1 && data[currentPosition + 1].timeStamp < timestamp)
+        if (forwards
+            && currentPosition + 1 < data.Count - 1
+            && data[currentPosition + 1].timeStamp < timestamp)
         {
             currentPosition++;
-            return data[currentPosition];
         }
-        else
+        else if (!forwards
+            && currentPosition - 1 >= 0
+            && data[currentPosition - 1].timeStamp >= timestamp)
         {
-            return data[currentPosition];
+            currentPosition--;
         }
+        return data[currentPosition];
     }
 
     public void Stop()

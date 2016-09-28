@@ -32,6 +32,10 @@ public class RecordingManager : NetworkBehaviour
     public event Action EventRecordStart;
     [SyncEvent]
     public event Action EventRecordStop;
+    [SyncEvent]
+    public event Action<float> EventPlaybackSpeed;
+    [SyncEvent]
+    public event Action<bool> EventPaused;
 
     [SerializeField]
     private Recordable[] recordables;
@@ -46,8 +50,12 @@ public class RecordingManager : NetworkBehaviour
     private bool isPlaying;
     private string recordingsDirectory;
     private string[] recordingFiles;
+    private float duration; // the duration of the current loaded recording
+    private float playbackSpeed = 1f;
+    private bool paused = false;
 
-    #region IsRecording
+    #region Public Properties
+
     public bool IsRecording
     {
         [Server]
@@ -64,22 +72,20 @@ public class RecordingManager : NetworkBehaviour
                     IsPlaying = false;
                 }
 
-                RecordStart();
+                OnRecordStart();
                 Debug.Log(name + ": Recording started.");
             }
             else
             {
                 // stop recording
-                RecordStop();
+                OnRecordStop();
                 Debug.Log(name + ": Recording stopped.");
             }
 
             isRecording = value;
         }
     }
-    #endregion
 
-    #region IsPlaying
     public bool IsPlaying
     {
         [Server]
@@ -96,14 +102,14 @@ public class RecordingManager : NetworkBehaviour
                     IsRecording = false;
                 }
 
-                PlayStart();
+                OnPlayStart();
                 //StartCoroutine("Play");
                 Debug.Log(name + ": Playback started.");
             }
             else
             {
                 // stop playing
-                PlayStop();
+                OnPlayStop();
                 //StopCoroutine("Play");
                 //StopPlaying();
                 Debug.Log(name + ": Playback stopped.");
@@ -112,12 +118,34 @@ public class RecordingManager : NetworkBehaviour
             isPlaying = value;
         }
     }
+
+    public float PlaybackSpeed
+    {
+        [Server]
+        get { return playbackSpeed; }
+        [Server]
+        set
+        {
+            playbackSpeed = value;
+            OnPlaybackSpeed(playbackSpeed);
+        }
+    }
+
+    public bool IsPaused
+    {
+        [Server]
+        get { return paused; }
+        [Server]
+        set
+        {
+            paused = value;
+            OnPause(paused);
+        }
+    }
+
     #endregion
 
-    private void OnDestroy()
-    {
-        instance = null;
-    }
+    #region MonoBehaviour
 
     [Server]
     private void Start()
@@ -143,8 +171,17 @@ public class RecordingManager : NetworkBehaviour
         UpdateRecordingsDropdown();
     }
 
+    private void OnDestroy()
+    {
+        instance = null;
+    }
+
+    #endregion
+
+    #region Event Calls
+
     [Server]
-    public void PlayStart()
+    private void OnPlayStart()
     {
         if (EventPlayStart != null)
         {
@@ -153,7 +190,7 @@ public class RecordingManager : NetworkBehaviour
     }
 
     [Server]
-    public void PlayStop()
+    private void OnPlayStop()
     {
         if (EventPlayStop != null)
         {
@@ -162,7 +199,7 @@ public class RecordingManager : NetworkBehaviour
     }
 
     [Server]
-    public void RecordStart()
+    private void OnRecordStart()
     {
         if (EventRecordStart != null)
         {
@@ -171,13 +208,34 @@ public class RecordingManager : NetworkBehaviour
     }
 
     [Server]
-    public void RecordStop()
+    private void OnRecordStop()
     {
         if (EventRecordStop != null)
         {
             EventRecordStop();
         }
+        UpdateDuration();
     }
+
+    [Server]
+    private void OnPlaybackSpeed(float speed)
+    {
+        if (EventPlaybackSpeed != null)
+        {
+            EventPlaybackSpeed(speed);
+        }
+    }
+
+    [Server]
+    private void OnPause(bool paused)
+    {
+        if (EventPaused != null)
+        {
+            EventPaused(paused);
+        }
+    }
+
+    #endregion
 
     [Server]
     public void UpdateRecordableItems()
@@ -188,6 +246,25 @@ public class RecordingManager : NetworkBehaviour
         }
 
         recordables = FindObjectsOfType<Recordable>();
+    }
+
+    [Server]
+    private void UpdateDuration()
+    {
+        // find the last timestamp in all recordables and set the duration with the greatest one
+        var maxTimestamp = 0f;
+        foreach (var recordable in recordables)
+        {
+            foreach (var recording in recordable.Recordings)
+            {
+                float lastTimestamp = (float)recording.data[recording.data.Count - 1].timeStamp;
+                if (lastTimestamp > maxTimestamp)
+                {
+                    maxTimestamp = lastTimestamp;
+                }
+            }
+        }
+        duration = maxTimestamp;
     }
 
     [Server]
@@ -212,6 +289,8 @@ public class RecordingManager : NetworkBehaviour
             }
         }
     }
+
+    #region IO
 
     [Server]
     public void Write()
@@ -249,4 +328,6 @@ public class RecordingManager : NetworkBehaviour
             }
         }
     }
+
+    #endregion
 }
