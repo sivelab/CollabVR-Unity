@@ -14,10 +14,19 @@ public class Recordable : NetworkBehaviour
 {
     private static float deltaThreshhold = 0.001f;
 
+    /// <summary>
+    /// The GameObjects we are going to record.
+    /// </summary>
     [SerializeField]
     private GameObject[] targets;
 
+    /// <summary>
+    /// The mapping of GameObjects to their Recordings.
+    /// </summary>
     private IDictionary<GameObject, Recording> targetRecordings;
+    /// <summary>
+    /// The mapping of recorded GameObjects to the proxy recording GameObjects.
+    /// </summary>
     private IDictionary<GameObject, GameObject> targetProxies;
     private float playbackStartTime;
     private float recordingStartTime;
@@ -50,7 +59,7 @@ public class Recordable : NetworkBehaviour
         RecordingManager.Instance.EventPlaybackSpeed += HandlePlaybackSpeedChange;
         RecordingManager.Instance.EventPaused += HandlePaused;
 
-        foreach (GameObject target in targets)
+        foreach (var target in targets)
         {
             // create new recording for target
             targetRecordings[target] = new Recording(target.name);
@@ -99,6 +108,8 @@ public class Recordable : NetworkBehaviour
             // don't make it active until playback
             proxy.SetActive(false);
             NetworkServer.Spawn(proxy);
+            // set the proxy mapping
+            targetProxies[target] = proxy;
         }
     }
 
@@ -181,7 +192,15 @@ public class Recordable : NetworkBehaviour
             foreach (var target in targets)
             {
                 var timestamp = (Time.realtimeSinceStartup - playbackStartTime) * playbackSpeed;
-                var transformData = targetRecordings[target].Next(timestamp, timestamp > playbackStartTime);
+                var transformData = targetRecordings[target].Current();
+                if (timestamp > 0)
+                {
+                    transformData = targetRecordings[target].Next(timestamp);
+                }
+                else
+                {
+                    //transformData = targetRecordings[target].Previous();
+                }
                 transformData.ToTransform(targetProxies[target].transform);
             }
             yield return null;

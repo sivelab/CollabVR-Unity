@@ -24,6 +24,11 @@ public class RecordingManager : NetworkBehaviour
     }
     #endregion
 
+    // We need these specific delegates because UNet will complain about
+    // using generic parameters with ActionEvents as SyncEvents.
+    public delegate void PlaybackSpeedDelegate(float value);
+    public delegate void PausedDelegate(bool value);
+
     [SyncEvent]
     public event Action EventPlayStart;
     [SyncEvent]
@@ -33,9 +38,9 @@ public class RecordingManager : NetworkBehaviour
     [SyncEvent]
     public event Action EventRecordStop;
     [SyncEvent]
-    public event Action<float> EventPlaybackSpeed;
+    public event PlaybackSpeedDelegate EventPlaybackSpeed;
     [SyncEvent]
-    public event Action<bool> EventPaused;
+    public event PausedDelegate EventPaused;
 
     [SerializeField]
     private Recordable[] recordables;
@@ -252,19 +257,18 @@ public class RecordingManager : NetworkBehaviour
     private void UpdateDuration()
     {
         // find the last timestamp in all recordables and set the duration with the greatest one
-        var maxTimestamp = 0f;
+        var maxDuration = 0f;
         foreach (var recordable in recordables)
         {
             foreach (var recording in recordable.Recordings)
             {
-                float lastTimestamp = (float)recording.data[recording.data.Count - 1].timeStamp;
-                if (lastTimestamp > maxTimestamp)
+                if ((float)recording.Duration() > maxDuration)
                 {
-                    maxTimestamp = lastTimestamp;
+                    maxDuration = (float)recording.Duration();
                 }
             }
         }
-        duration = maxTimestamp;
+        duration = maxDuration;
     }
 
     [Server]
@@ -301,8 +305,12 @@ public class RecordingManager : NetworkBehaviour
         // write to file
         foreach (var recordable in recordables)
         {
-            output.AppendLine(JsonUtility.ToJson(recordable.Recordings));
+            foreach (var recording in recordable.Recordings)
+            {
+                output.AppendLine(JsonUtility.ToJson(recording));
+            }
         }
+        Debug.Log(output.ToString());
         File.WriteAllText(filename, output.ToString());
         UpdateRecordingsDropdown();
     }

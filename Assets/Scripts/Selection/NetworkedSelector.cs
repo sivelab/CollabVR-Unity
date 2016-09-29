@@ -40,10 +40,13 @@ public class NetworkedSelector : NetworkBehaviour, ISelector
             }
             else
             {
-                CmdSelect(selectable.gameObject.GetComponent<NetworkIdentity>().netId);
-                if (selectable.GetComponent<NetworkIdentity>().clientAuthorityOwner == networkIdentity.connectionToClient)
+                if (!(selectable is VRUI))
                 {
-
+                    CmdSelect(selectable.gameObject.GetComponent<NetworkIdentity>().netId);
+                }
+                if (selectable is VRUI
+                    || selectable.GetComponent<NetworkIdentity>().clientAuthorityOwner == networkIdentity.connectionToClient)
+                {
                     Debug.Log(gameObject.name + " selects " + selectable.name);
                     selectable.Select();
                     Select(selectable);
@@ -60,7 +63,10 @@ public class NetworkedSelector : NetworkBehaviour, ISelector
         }
         Debug.Log(gameObject.name + " deselects " + selectable.name);
         Deselect(selectable);
-        CmdDeselect(selectable.gameObject.GetComponent<NetworkIdentity>().netId);
+        if (!(selectable is VRUI))
+        {
+            CmdDeselect(selectable.gameObject.GetComponent<NetworkIdentity>().netId);
+        }
     }
 
     public virtual void HandleOver(Selectable selectable)

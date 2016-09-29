@@ -12,7 +12,7 @@ public class RigidbodySelector : NetworkedSelector
     public override void Select(Selectable selectable)
     {
         base.Select(selectable);
-        if (selectable.gameObject.GetComponent<FixedJoint>() == null)
+        if (!(selectable is VRUI) && selectable.gameObject.GetComponent<FixedJoint>() == null)
         {
             Debug.Log("adding fixed joint");
             joint = selectable.gameObject.AddComponent<FixedJoint>();
@@ -22,8 +22,11 @@ public class RigidbodySelector : NetworkedSelector
 
     public override void Deselect(Selectable selectable)
     {
-        DestroyImmediate(joint);
-        joint = null;
+        if (!(selectable is VRUI))
+        {
+            DestroyImmediate(joint);
+            joint = null;
+        }
         base.Deselect(selectable);
     }
 }
