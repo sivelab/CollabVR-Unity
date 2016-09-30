@@ -33,7 +33,10 @@ public class Player : NetworkBehaviour
         if (reticle != null)
         {
             reticle.Show();
-            radial.Hide();
+            if (radial != null)
+            {
+                radial.Hide();
+            }
         }
 
         // enable microphone stuff

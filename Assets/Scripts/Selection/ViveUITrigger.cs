@@ -1,32 +1,36 @@
 ﻿using UnityEngine;
 using System.Collections;
 
-public class ViveUITrigger : RaytracerTrigger
+public class ViveUITrigger : ViveGrabTrigger
 {
-    // some sort of pointing ray
 
-    [SerializeField]
-    private SteamVR_TrackedController controller;
-
-    private void Start()
+    // Use this for initialization
+    void Start()
     {
-        controller.TriggerClicked += HandleTriggerClicked;
-        controller.TriggerUnclicked += HandleTriggerUnclicked;
+
     }
 
-    private void HandleTriggerClicked(object sender, ClickedEventArgs e)
+    // Update is called once per frame
+    void Update()
     {
-        if (CurrentSelectabe is VRUI)
+
+    }
+
+    protected override void OnTriggerEnter(Collider collider)
+    {
+        if (collider.gameObject.GetComponent<Selectable>() is VRUI)
         {
-            Trigger((VRUI)CurrentSelectabe);
+            collisionObject = collider.gameObject.GetComponent<Selectable>();
+            Over(collisionObject);
         }
     }
 
-    private void HandleTriggerUnclicked(object sender, ClickedEventArgs e)
+    protected override void OnTriggerExit(Collider collider)
     {
-        if (CurrentSelectabe is VRUI)
+        if (collider.gameObject.GetComponent<Selectable>() is VRUI)
         {
-            Untrigger((VRUI)CurrentSelectabe);
+            Out(collider.gameObject.GetComponent<Selectable>());
+            collisionObject = null;
         }
     }
 }

@@ -33,6 +33,7 @@ GameObject:
   - 54: {fileID: 5484166}
   - 114: {fileID: 11421192}
   - 114: {fileID: 11415226}
+  - 114: {fileID: 114000012923397924}
   m_Layer: 0
   m_Name: Controller (right)
   m_TagString: Untagged
@@ -106,6 +107,7 @@ GameObject:
   - 114: {fileID: 11490758}
   - 114: {fileID: 11490706}
   - 114: {fileID: 11455588}
+  - 114: {fileID: 114000012317351336}
   m_Layer: 0
   m_Name: SteamVR_Player
   m_TagString: Untagged
@@ -708,14 +710,14 @@ MonoBehaviour:
   size: 0
   color: {r: 0, g: 1, b: 1, a: 1}
   vertices:
-  - {x: 1.6000001, y: 0.01, z: -1.5500001}
-  - {x: -1.6000001, y: 0.01, z: -1.5500001}
-  - {x: -1.6000001, y: 0.01, z: 1.5500001}
-  - {x: 1.6000001, y: 0.01, z: 1.5500001}
-  - {x: 1.7500001, y: 0.01, z: -1.7}
-  - {x: -1.7500001, y: 0.01, z: -1.7}
-  - {x: -1.7500001, y: 0.01, z: 1.7}
-  - {x: 1.7500001, y: 0.01, z: 1.7}
+  - {x: 1.1999999, y: 0.01, z: -1.0000002}
+  - {x: -1.1999999, y: 0.01, z: -1.0000002}
+  - {x: -1.1999999, y: 0.01, z: 1.0000002}
+  - {x: 1.1999999, y: 0.01, z: 1.0000002}
+  - {x: 1.3499999, y: 0.01, z: -1.1500002}
+  - {x: -1.3499999, y: 0.01, z: -1.1500002}
+  - {x: -1.3499999, y: 0.01, z: 1.1500002}
+  - {x: 1.3499999, y: 0.01, z: 1.1500002}
 --- !u!114 &11444752
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -1226,3 +1228,28 @@ MeshFilter:
   m_PrefabInternal: {fileID: 100100000}
   m_GameObject: {fileID: 1000011102126864}
   m_Mesh: {fileID: 4300002, guid: 72f2afce364feb543bd7160810fdd2f9, type: 3}
+--- !u!114 &114000012317351336
+MonoBehaviour:
+  m_ObjectHideFlags: 1
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 100100000}
+  m_GameObject: {fileID: 163372}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 55bfc29603c764a6c886fbfcaf77ab45, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  trigger: {fileID: 114000012923397924}
+  networkIdentity: {fileID: 11493464}
+--- !u!114 &114000012923397924
+MonoBehaviour:
+  m_ObjectHideFlags: 1
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 100100000}
+  m_GameObject: {fileID: 143528}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c65bf5527dd834f4a8d3c2375a6a12a3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  trackedController: {fileID: 11421192}
