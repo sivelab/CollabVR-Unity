@@ -1,29 +1,28 @@
 ﻿using System;
 using UnityEngine;
 
+/// <summary>
+/// 
+/// </summary>
 [Serializable]
-public class TransformData
+public struct TransformData
 {
     public Vector3 position;
     public Quaternion rotation;
     public Vector3 scale;
-    public double timeStamp;
-
-    public TransformData(Transform transform, double timeStamp)
-    {
-        FromTransform(transform);
-        this.timeStamp = timeStamp;
-    }
+    public float timeStamp;
 
     /// <summary>
-    /// Sets this transform data from a give transform.
+    /// 
     /// </summary>
-    /// <param name="transform">Input transform.</param>
-    public void FromTransform(Transform transform)
+    /// <param name="transform"></param>
+    /// <param name="timeStamp"></param>
+    public TransformData(Transform transform, float timeStamp)
     {
         position = transform.localPosition;
         rotation = transform.localRotation;
         scale = transform.localScale;
+        this.timeStamp = timeStamp;
     }
 
     /// <summary>

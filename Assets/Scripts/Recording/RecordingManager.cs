@@ -3,6 +3,7 @@ using UnityEngine.Networking;
 using UnityEngine.UI;
 using System;
 using System.IO;
+using System.Linq;
 using System.Text;
 
 public class RecordingManager : NetworkBehaviour
@@ -51,21 +52,24 @@ public class RecordingManager : NetworkBehaviour
     [SerializeField]
     private GameObject recordingsPanel;
 
+    [SyncVar]
     private bool isRecording;
+    [SyncVar]
     private bool isPlaying;
     private string recordingsDirectory;
     private string[] recordingFiles;
+    [SyncVar]
     private float duration; // the duration of the current loaded recording
+    [SyncVar]
     private float playbackSpeed = 1f;
+    [SyncVar]
     private bool paused = false;
 
     #region Public Properties
 
     public bool IsRecording
     {
-        [Server]
         get { return isRecording; }
-        [Server]
         set
         {
             if (value)
@@ -93,9 +97,7 @@ public class RecordingManager : NetworkBehaviour
 
     public bool IsPlaying
     {
-        [Server]
         get { return isPlaying; }
-        [Server]
         set
         {
             if (value)
@@ -126,9 +128,7 @@ public class RecordingManager : NetworkBehaviour
 
     public float PlaybackSpeed
     {
-        [Server]
         get { return playbackSpeed; }
-        [Server]
         set
         {
             playbackSpeed = value;
@@ -138,9 +138,7 @@ public class RecordingManager : NetworkBehaviour
 
     public bool IsPaused
     {
-        [Server]
         get { return paused; }
-        [Server]
         set
         {
             paused = value;
@@ -172,7 +170,9 @@ public class RecordingManager : NetworkBehaviour
             Directory.CreateDirectory(recordingsDirectory);
         }
 
-        UpdateRecordableItems();
+        // update recordables
+        recordables = FindObjectsOfType<Recordable>();
+
         UpdateRecordingsDropdown();
     }
 
@@ -185,7 +185,6 @@ public class RecordingManager : NetworkBehaviour
 
     #region Event Calls
 
-    [Server]
     private void OnPlayStart()
     {
         if (EventPlayStart != null)
@@ -194,7 +193,6 @@ public class RecordingManager : NetworkBehaviour
         }
     }
 
-    [Server]
     private void OnPlayStop()
     {
         if (EventPlayStop != null)
@@ -203,7 +201,6 @@ public class RecordingManager : NetworkBehaviour
         }
     }
 
-    [Server]
     private void OnRecordStart()
     {
         if (EventRecordStart != null)
@@ -212,7 +209,6 @@ public class RecordingManager : NetworkBehaviour
         }
     }
 
-    [Server]
     private void OnRecordStop()
     {
         if (EventRecordStop != null)
@@ -222,7 +218,6 @@ public class RecordingManager : NetworkBehaviour
         UpdateDuration();
     }
 
-    [Server]
     private void OnPlaybackSpeed(float speed)
     {
         if (EventPlaybackSpeed != null)
@@ -231,7 +226,6 @@ public class RecordingManager : NetworkBehaviour
         }
     }
 
-    [Server]
     private void OnPause(bool paused)
     {
         if (EventPaused != null)
@@ -241,17 +235,6 @@ public class RecordingManager : NetworkBehaviour
     }
 
     #endregion
-
-    [Server]
-    public void UpdateRecordableItems()
-    {
-        if (!isServer)
-        {
-            return;
-        }
-
-        recordables = FindObjectsOfType<Recordable>();
-    }
 
     [Server]
     private void UpdateDuration()
@@ -271,33 +254,45 @@ public class RecordingManager : NetworkBehaviour
         duration = maxDuration;
     }
 
-    [Server]
-    public void UpdateRecordingsDropdown()
+    private void UpdateRecordingsDropdown()
     {
         if (Directory.Exists(recordingsDirectory))
         {
             recordingFiles = Directory.GetFiles(recordingsDirectory);
-            // update options
-            float previousY = 0;
-            foreach (var file in recordingFiles)
-            {
-                // instantiate a new recording button
-                var newButton = Instantiate(recordingButtonPrefab);
-                newButton.transform.SetParent(recordingsPanel.transform, false);
-                newButton.transform.localPosition = new Vector3(0, previousY, 0);
-                var newButtonText = newButton.GetComponentInChildren<Text>();
-                newButtonText.text = Path.GetFileName(file);
-                // make sure the correct OnClick() function will actually be called
-                newButton.GetComponent<Button>().onClick.AddListener(delegate { Read(newButtonText); });
-                previousY -= newButton.GetComponent<RectTransform>().rect.height;
-            }
+            var files = recordingFiles.Select(p => Path.GetFileName(p)).ToArray();
+            RpcUpdateRecoringsDropdown(files);
         }
+    }
+
+    [ClientRpc]
+    private void RpcUpdateRecoringsDropdown(string[] fileNames)
+    {
+        // update options
+        float previousY = 0;
+        foreach (var file in fileNames)
+        {
+            // instantiate a new recording button
+            var newButton = Instantiate(recordingButtonPrefab);
+            newButton.transform.SetParent(recordingsPanel.transform, false);
+            newButton.transform.localPosition = new Vector3(0, previousY, 0);
+            var newButtonText = newButton.GetComponentInChildren<Text>();
+            newButtonText.text = file;
+            // make sure the correct OnClick() function will actually be called
+            newButton.GetComponent<Button>().onClick.AddListener(delegate { LoadFromTextButton(newButtonText); });
+            previousY -= newButton.GetComponent<RectTransform>().rect.height;
+        }
+
     }
 
     #region IO
 
-    [Server]
-    public void Write()
+    public void SaveRecording()
+    {
+        CmdWrite();
+    }
+
+    [Command]
+    private void CmdWrite()
     {
         var filename = recordingsDirectory + string.Format("{0:yyyy-MM-dd-HH-mm-ss}", DateTime.UtcNow) + ".rec";
         Debug.Log("Writing to: " + filename);
@@ -315,11 +310,16 @@ public class RecordingManager : NetworkBehaviour
         UpdateRecordingsDropdown();
     }
 
-    [Server]
-    public void Read(Text recordingButton)
+    public void LoadFromTextButton(Text recordingButton)
+    {
+        var filename = recordingsDirectory + recordingButton.text;
+        CmdRead(filename);
+    }
+
+    [Command]
+    private void CmdRead(string filename)
     {
         // read from file
-        var filename = recordingsDirectory + recordingButton.text;
         Debug.Log("Reading from: " + filename);
         var input = File.ReadAllText(filename);
         using (var reader = new StringReader(input))

@@ -17,7 +17,7 @@ public class Recording
         currentPosition = 0;
     }
 
-    public double Duration()
+    public float Duration()
     {
         return data[data.Count - 1].timeStamp;
     }
@@ -32,7 +32,7 @@ public class Recording
     /// </summary>
     /// <param name="timestamp">The time in the playback that we are at.</param>
     /// <returns></returns>
-    public TransformData Next(double timestamp)
+    public TransformData Next(float timestamp)
     {
         if (currentPosition + 1 < data.Count - 1
             && data[currentPosition + 1].timeStamp < timestamp)
@@ -42,7 +42,7 @@ public class Recording
         return data[currentPosition];
     }
 
-    public TransformData Previous(double timestamp)
+    public TransformData Previous(float timestamp)
     {
         if (currentPosition - 1 >= 0
             && data[currentPosition - 1].timeStamp > timestamp)

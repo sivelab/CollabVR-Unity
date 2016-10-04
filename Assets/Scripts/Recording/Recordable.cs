@@ -136,12 +136,12 @@ public class Recordable : NetworkBehaviour
         {
             proxy.SetActive(true);
         }
-        StartCoroutine("Play");
+        StartCoroutine(Play());
     }
 
     private void HandlePlayStop()
     {
-        StopCoroutine("Play");
+        StopCoroutine(Play());
         // disable proxy
         foreach (var proxy in targetProxies.Values)
         {
@@ -162,12 +162,12 @@ public class Recordable : NetworkBehaviour
             recording.data.Clear();
         }
         recordingStartTime = Time.realtimeSinceStartup;
-        StartCoroutine("Record");
+        StartCoroutine(Record());
     }
 
     private void HandleRecordStop()
     {
-        StopCoroutine("Record");
+        StopCoroutine(Record());
     }
 
     private void HandlePlaybackSpeedChange(float speed)
