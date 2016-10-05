@@ -281,7 +281,6 @@ public class RecordingManager : NetworkBehaviour
             newButton.GetComponent<Button>().onClick.AddListener(delegate { LoadFromTextButton(newButtonText); });
             previousY -= newButton.GetComponent<RectTransform>().rect.height;
         }
-
     }
 
     #region IO

@@ -573,6 +573,15 @@ Prefab:
       propertyPath: m_RootOrder
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 114000013576489700, guid: 3a4f20d414c207745b2c199faa5bd472,
+        type: 2}
+      propertyPath: m_OnClick.m_PersistentCalls.m_Calls.Array.data[0].m_MethodName
+      value: SaveRecording
+      objectReference: {fileID: 0}
+    - target: {fileID: 11471314, guid: 3a4f20d414c207745b2c199faa5bd472, type: 2}
+      propertyPath: proxyMaterial
+      value: 
+      objectReference: {fileID: 2100000, guid: 5d69df9d9d11e49d110086ba44295342, type: 2}
     m_RemovedComponents: []
   m_ParentPrefab: {fileID: 100100000, guid: 3a4f20d414c207745b2c199faa5bd472, type: 2}
   m_IsPrefabParent: 0
