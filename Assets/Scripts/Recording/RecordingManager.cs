@@ -57,7 +57,7 @@ public class RecordingManager : NetworkBehaviour
     [SyncVar]
     private bool isPlaying;
     private string recordingsDirectory;
-    private string[] recordingFiles;
+    private SyncListString recordingFiles = new SyncListString();
     [SyncVar]
     private float duration; // the duration of the current loaded recording
     [SyncVar]
@@ -173,12 +173,25 @@ public class RecordingManager : NetworkBehaviour
         // update recordables
         recordables = FindObjectsOfType<Recordable>();
 
-        UpdateRecordingsDropdown();
+        // get recordings
+        foreach (var file in Directory.GetFiles(recordingsDirectory))
+        {
+            recordingFiles.Add(file);
+        }
     }
 
     private void OnDestroy()
     {
         instance = null;
+    }
+
+    #endregion
+
+    #region NetworkBehaviour
+
+    public override void OnStartClient()
+    {
+        recordingFiles.Callback = OnUpdateRecordings;
     }
 
     #endregion
@@ -254,22 +267,13 @@ public class RecordingManager : NetworkBehaviour
         duration = maxDuration;
     }
 
-    private void UpdateRecordingsDropdown()
+    private void OnUpdateRecordings(SyncListString.Operation op, int index)
     {
-        if (Directory.Exists(recordingsDirectory))
-        {
-            recordingFiles = Directory.GetFiles(recordingsDirectory);
-            var files = recordingFiles.Select(p => Path.GetFileName(p)).ToArray();
-            RpcUpdateRecoringsDropdown(files);
-        }
-    }
+        var files = recordingFiles.Select(p => Path.GetFileName(p)).ToArray();
 
-    [ClientRpc]
-    private void RpcUpdateRecoringsDropdown(string[] fileNames)
-    {
         // update options
         float previousY = 0;
-        foreach (var file in fileNames)
+        foreach (var file in files)
         {
             // instantiate a new recording button
             var newButton = Instantiate(recordingButtonPrefab);
@@ -306,7 +310,7 @@ public class RecordingManager : NetworkBehaviour
         }
         Debug.Log(output.ToString());
         File.WriteAllText(filename, output.ToString());
-        UpdateRecordingsDropdown();
+        recordingFiles.Add(filename);
     }
 
     public void LoadFromTextButton(Text recordingButton)
