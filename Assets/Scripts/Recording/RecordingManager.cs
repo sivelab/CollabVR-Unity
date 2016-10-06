@@ -72,27 +72,33 @@ public class RecordingManager : NetworkBehaviour
         get { return isRecording; }
         set
         {
-            if (value)
-            {
-                // start recording
-                // stop playing
-                if (IsPlaying)
-                {
-                    IsPlaying = false;
-                }
-
-                OnRecordStart();
-                Debug.Log(name + ": Recording started.");
-            }
-            else
-            {
-                // stop recording
-                OnRecordStop();
-                Debug.Log(name + ": Recording stopped.");
-            }
-
-            isRecording = value;
+            CmdSetIsRecording(value);
         }
+    }
+
+    [Command]
+    private void CmdSetIsRecording(bool value)
+    {
+        if (value)
+        {
+            // start recording
+            // stop playing
+            if (IsPlaying)
+            {
+                IsPlaying = false;
+            }
+
+            OnRecordStart();
+            Debug.Log(name + ": Recording started.");
+        }
+        else
+        {
+            // stop recording
+            OnRecordStop();
+            Debug.Log(name + ": Recording stopped.");
+        }
+
+        isRecording = value;
     }
 
     public bool IsPlaying
@@ -100,30 +106,36 @@ public class RecordingManager : NetworkBehaviour
         get { return isPlaying; }
         set
         {
-            if (value)
-            {
-                // start playing
-                // stop recording
-                if (IsRecording)
-                {
-                    IsRecording = false;
-                }
-
-                OnPlayStart();
-                //StartCoroutine("Play");
-                Debug.Log(name + ": Playback started.");
-            }
-            else
-            {
-                // stop playing
-                OnPlayStop();
-                //StopCoroutine("Play");
-                //StopPlaying();
-                Debug.Log(name + ": Playback stopped.");
-            }
-
-            isPlaying = value;
+            CmdSetIsPlaying(value);
         }
+    }
+
+    [Command]
+    private void CmdSetIsPlaying(bool value)
+    {
+        if (value)
+        {
+            // start playing
+            // stop recording
+            if (IsRecording)
+            {
+                IsRecording = false;
+            }
+
+            OnPlayStart();
+            //StartCoroutine("Play");
+            Debug.Log(name + ": Playback started.");
+        }
+        else
+        {
+            // stop playing
+            OnPlayStop();
+            //StopCoroutine("Play");
+            //StopPlaying();
+            Debug.Log(name + ": Playback stopped.");
+        }
+
+        isPlaying = value;
     }
 
     public float PlaybackSpeed
@@ -131,9 +143,15 @@ public class RecordingManager : NetworkBehaviour
         get { return playbackSpeed; }
         set
         {
-            playbackSpeed = value;
-            OnPlaybackSpeed(playbackSpeed);
+            CmdPlaybackSpeed(value);
         }
+    }
+
+    [Command]
+    private void CmdPlaybackSpeed(float value)
+    {
+        playbackSpeed = value;
+        OnPlaybackSpeed(playbackSpeed);
     }
 
     public bool IsPaused
@@ -141,9 +159,15 @@ public class RecordingManager : NetworkBehaviour
         get { return paused; }
         set
         {
-            paused = value;
-            OnPause(paused);
+            CmdPaused(value);
         }
+    }
+
+    [Command]
+    private void CmdPaused(bool value)
+    {
+        paused = value;
+        OnPause(paused);
     }
 
     #endregion
@@ -258,9 +282,9 @@ public class RecordingManager : NetworkBehaviour
         {
             foreach (var recording in recordable.Recordings)
             {
-                if ((float)recording.Duration() > maxDuration)
+                if (recording.Duration() > maxDuration)
                 {
-                    maxDuration = (float)recording.Duration();
+                    maxDuration = recording.Duration();
                 }
             }
         }
