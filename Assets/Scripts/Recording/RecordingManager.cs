@@ -46,12 +46,12 @@ public class RecordingManager : NetworkBehaviour
     [SerializeField]
     private Recordable[] recordables;
     [SerializeField]
-    public Material proxyMaterial;
-    [SerializeField]
     private GameObject recordingButtonPrefab;
     [SerializeField]
     private GameObject recordingsPanel;
 
+    [SyncVar]
+    public Material proxyMaterial;
     [SyncVar]
     private bool isRecording;
     [SyncVar]
@@ -354,12 +354,16 @@ public class RecordingManager : NetworkBehaviour
             string line;
             foreach (var recordable in recordables)
             {
-                line = reader.ReadLine();
-                if (line == null)
+                foreach (var recording in recordable.Recordings)
                 {
-                    break;
+                    line = reader.ReadLine();
+                    if (line == null)
+                    {
+                        break;
+                    }
+                    Debug.Log(line);
+                    JsonUtility.FromJsonOverwrite(line, recording);
                 }
-                JsonUtility.FromJsonOverwrite(line, recordable.Recordings);
             }
         }
     }

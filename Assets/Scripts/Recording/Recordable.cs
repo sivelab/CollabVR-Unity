@@ -7,6 +7,7 @@
 
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.Networking;
 
@@ -132,10 +133,7 @@ public class Recordable : NetworkBehaviour
     private void HandlePlayStart()
     {
         playbackStartTime = Time.realtimeSinceStartup;
-        foreach (var proxy in targetProxies.Values)
-        {
-            proxy.SetActive(true);
-        }
+        targetProxies.Values.ToList().ForEach(p => p.SetActive(true));
         StartCoroutine(Play());
     }
 
@@ -143,24 +141,15 @@ public class Recordable : NetworkBehaviour
     {
         StopCoroutine(Play());
         // disable proxy
-        foreach (var proxy in targetProxies.Values)
-        {
-            proxy.SetActive(false);
-        }
+        targetProxies.Values.ToList().ForEach(p => p.SetActive(false));
         // reset recording position
-        foreach (var recording in targetRecordings.Values)
-        {
-            recording.Stop();
-        }
+        targetRecordings.Values.ToList().ForEach(r => r.Stop());
     }
 
     private void HandleRecordStart()
     {
         // clear recording
-        foreach (var recording in targetRecordings.Values)
-        {
-            recording.data.Clear();
-        }
+        targetRecordings.Values.ToList().ForEach(r => r.data.Clear());
         recordingStartTime = Time.realtimeSinceStartup;
         StartCoroutine(Record());
     }
