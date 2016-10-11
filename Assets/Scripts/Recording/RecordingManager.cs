@@ -43,6 +43,8 @@ public class RecordingManager : NetworkBehaviour
     [SyncEvent]
     public event PausedDelegate EventPaused;
 
+    public Material proxyMaterial;
+
     [SerializeField]
     private Recordable[] recordables;
     [SerializeField]
@@ -50,8 +52,6 @@ public class RecordingManager : NetworkBehaviour
     [SerializeField]
     private GameObject recordingsPanel;
 
-    [SyncVar]
-    public Material proxyMaterial;
     [SyncVar]
     private bool isRecording;
     [SyncVar]
@@ -369,4 +369,9 @@ public class RecordingManager : NetworkBehaviour
     }
 
     #endregion
+
+    public string ProxyMaterialName()
+    {
+        return proxyMaterial.name;
+    }
 }

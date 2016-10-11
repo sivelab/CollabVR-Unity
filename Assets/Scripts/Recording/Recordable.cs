@@ -34,6 +34,9 @@ public class Recordable : NetworkBehaviour
     private float playbackSpeed = 1f;
     private bool paused = false;
 
+    private bool isPlaying = false;
+    private bool isRecording = false;
+
     public ICollection<Recording> Recordings
     {
         get { return targetRecordings.Values; }
@@ -42,23 +45,136 @@ public class Recordable : NetworkBehaviour
 
     #region MonoBehavior
 
+    [Server]
     private void Start()
     {
-        if (!isServer)
-        {
-            return;
-        }
-
         targetRecordings = new Dictionary<GameObject, Recording>();
         targetProxies = new Dictionary<GameObject, GameObject>();
 
         // register playback and recording handlers with the RecordingManager
-        RecordingManager.Instance.EventPlayStart += HandlePlayStart;
-        RecordingManager.Instance.EventPlayStop += HandlePlayStop;
-        RecordingManager.Instance.EventRecordStart += HandleRecordStart;
-        RecordingManager.Instance.EventRecordStop += HandleRecordStop;
-        RecordingManager.Instance.EventPlaybackSpeed += HandlePlaybackSpeedChange;
-        RecordingManager.Instance.EventPaused += HandlePaused;
+        RecordingManager.Instance.EventPlayStart += CmdHandlePlayStart;
+        RecordingManager.Instance.EventPlayStop += CmdHandlePlayStop;
+        RecordingManager.Instance.EventRecordStart += CmdHandleRecordStart;
+        RecordingManager.Instance.EventRecordStop += CmdHandleRecordStop;
+        RecordingManager.Instance.EventPlaybackSpeed += CmdHandlePlaybackSpeedChange;
+        RecordingManager.Instance.EventPaused += CmdHandlePaused;
+
+        CmdSpawnPrefab();
+    }
+
+    private void OnDestroy()
+    {
+        // destroy proxy
+        if (isServer)
+        {
+            foreach (var proxy in targetProxies.Values)
+            {
+                NetworkServer.Destroy(proxy);
+            }
+        }
+    }
+
+    #endregion
+
+    [ServerCallback]
+    private void Update()
+    {
+        if (isPlaying)
+        {
+            var timestamp = (Time.realtimeSinceStartup - playbackStartTime) * playbackSpeed;
+            foreach (var target in targets)
+            {
+                var transformData = targetRecordings[target].Current();
+                if (timestamp > 0)
+                {
+                    transformData = targetRecordings[target].Next(timestamp);
+                }
+                else
+                {
+                    //transformData = targetRecordings[target].Previous();
+                }
+                transformData.ToTransform(targetProxies[target].transform);
+            }
+        }
+        else if (isRecording)
+        {
+            foreach (var target in targets)
+            {
+                // check if the recordables tranform has moved enough to be worth recording
+                var recording = targetRecordings[target];
+                if (recording.data.Count != 0)
+                {
+                    var lastTransform = recording.data[recording.data.Count - 1];
+                    var difference = Vector3.Distance(lastTransform.position, transform.localPosition)
+                        + Quaternion.Angle(lastTransform.rotation, transform.rotation);
+
+                    if (difference > deltaThreshhold)
+                    {
+                        recording.data.Add(new TransformData(target.transform, Time.realtimeSinceStartup - recordingStartTime));
+                    }
+                }
+                else
+                {
+                    recording.data.Add(new TransformData(target.transform, Time.realtimeSinceStartup - recordingStartTime));
+                }
+            }
+        }
+    }
+
+    #region Event Handlers
+
+    [Server]
+    private void CmdHandlePlayStart()
+    {
+        playbackStartTime = Time.realtimeSinceStartup;
+        targetProxies.Values.ToList().ForEach(p => p.SetActive(true));
+        RpcEnableProxies(ProxyNetIds());
+        isPlaying = true;
+    }
+
+    [Server]
+    private void CmdHandlePlayStop()
+    {
+        isPlaying = false;
+        // disable proxy
+        targetProxies.Values.ToList().ForEach(p => p.SetActive(false));
+        RpcDisableProxies(ProxyNetIds());
+        // reset recording position
+        targetRecordings.Values.ToList().ForEach(r => r.Stop());
+    }
+
+    [Server]
+    private void CmdHandleRecordStart()
+    {
+        // clear recording
+        targetRecordings.Values.ToList().ForEach(r => r.data.Clear());
+        recordingStartTime = Time.realtimeSinceStartup;
+        isRecording = true;
+    }
+
+    [Server]
+    private void CmdHandleRecordStop()
+    {
+        isRecording = false;
+    }
+
+    [Server]
+    private void CmdHandlePlaybackSpeedChange(float speed)
+    {
+        playbackSpeed = speed;
+    }
+
+    private void CmdHandlePaused(bool value)
+    {
+        paused = value;
+    }
+
+    #endregion
+
+    [Command]
+    private void CmdSpawnPrefab()
+    {
+        var proxyMaterial = Resources.Load(RecordingManager.Instance.ProxyMaterialName(), typeof(Material)) as Material;
 
         foreach (var target in targets)
         {
@@ -70,7 +186,7 @@ public class Recordable : NetworkBehaviour
             var renderers = proxy.GetComponentsInChildren<Renderer>();
             foreach (var renderer in renderers)
             {
-                renderer.material = RecordingManager.Instance.proxyMaterial;
+                renderer.material = proxyMaterial;
             }
 
             // remove all components we don't need
@@ -108,122 +224,35 @@ public class Recordable : NetworkBehaviour
 
             // don't make it active until playback
             proxy.SetActive(false);
+            ClientScene.RegisterPrefab(proxy);
             NetworkServer.Spawn(proxy);
             // set the proxy mapping
             targetProxies[target] = proxy;
         }
+
+        RpcDisableProxies(ProxyNetIds());
     }
 
-    private void OnDestroy()
+    private NetworkInstanceId[] ProxyNetIds()
     {
-        // destroy proxy
-        if (isServer)
+        return (from proxy in targetProxies.Values select proxy.GetComponent<NetworkIdentity>().netId).ToArray();
+    }
+
+    [ClientRpc]
+    private void RpcDisableProxies(NetworkInstanceId[] netIds)
+    {
+        foreach (var netId in netIds)
         {
-            foreach (var proxy in targetProxies.Values)
-            {
-                NetworkServer.Destroy(proxy);
-            }
+            ClientScene.FindLocalObject(netId).gameObject.SetActive(false);
         }
     }
 
-    #endregion
-
-    #region Event Handlers
-
-    private void HandlePlayStart()
+    [ClientRpc]
+    private void RpcEnableProxies(NetworkInstanceId[] netIds)
     {
-        playbackStartTime = Time.realtimeSinceStartup;
-        targetProxies.Values.ToList().ForEach(p => p.SetActive(true));
-        StartCoroutine(Play());
-    }
-
-    private void HandlePlayStop()
-    {
-        StopCoroutine(Play());
-        // disable proxy
-        targetProxies.Values.ToList().ForEach(p => p.SetActive(false));
-        // reset recording position
-        targetRecordings.Values.ToList().ForEach(r => r.Stop());
-    }
-
-    private void HandleRecordStart()
-    {
-        // clear recording
-        targetRecordings.Values.ToList().ForEach(r => r.data.Clear());
-        recordingStartTime = Time.realtimeSinceStartup;
-        StartCoroutine(Record());
-    }
-
-    private void HandleRecordStop()
-    {
-        StopCoroutine(Record());
-    }
-
-    private void HandlePlaybackSpeedChange(float speed)
-    {
-        playbackSpeed = speed;
-    }
-
-    private void HandlePaused(bool value)
-    {
-        paused = value;
-    }
-
-    #endregion
-
-    #region Coroutines
-
-    private IEnumerator Play()
-    {
-        // playback loop
-        while (true && !paused)
+        foreach (var netId in netIds)
         {
-            foreach (var target in targets)
-            {
-                var timestamp = (Time.realtimeSinceStartup - playbackStartTime) * playbackSpeed;
-                var transformData = targetRecordings[target].Current();
-                if (timestamp > 0)
-                {
-                    transformData = targetRecordings[target].Next(timestamp);
-                }
-                else
-                {
-                    //transformData = targetRecordings[target].Previous();
-                }
-                transformData.ToTransform(targetProxies[target].transform);
-            }
-            yield return null;
+            ClientScene.FindLocalObject(netId).gameObject.SetActive(false);
         }
     }
-
-    private IEnumerator Record()
-    {
-        // recording loop
-        while (true)
-        {
-            foreach (var target in targets)
-            {
-                // check if the recordables tranform has moved enough to be worth recording
-                var recording = targetRecordings[target];
-                if (recording.data.Count != 0)
-                {
-                    var lastTransform = recording.data[recording.data.Count - 1];
-                    var difference = Vector3.Distance(lastTransform.position, transform.localPosition)
-                        + Quaternion.Angle(lastTransform.rotation, transform.rotation);
-
-                    if (difference > deltaThreshhold)
-                    {
-                        recording.data.Add(new TransformData(target.transform, Time.realtimeSinceStartup - recordingStartTime));
-                    }
-                }
-                else
-                {
-                    recording.data.Add(new TransformData(target.transform, Time.realtimeSinceStartup - recordingStartTime));
-                }
-            }
-            yield return null;
-        }
-    }
-
-    #endregion
 }
