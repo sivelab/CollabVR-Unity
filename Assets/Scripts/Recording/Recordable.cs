@@ -20,20 +20,20 @@ public class Recordable : NetworkBehaviour
     /// </summary>
     [SerializeField]
     private GameObject[] targets;
+    public GameObject[] Targets
+    {
+        get { return targets; }
+    }
 
     /// <summary>
     /// The mapping of GameObjects to their Recordings.
     /// </summary>
     private IDictionary<GameObject, Recording> targetRecordings;
-    /// <summary>
-    /// The mapping of recorded GameObjects to the proxy recording GameObjects.
-    /// </summary>
-    private IDictionary<GameObject, GameObject> targetProxies;
+    private IDictionary<GameObject, GameObject> proxies;
     private float playbackStartTime;
     private float recordingStartTime;
     private float playbackSpeed = 1f;
     private bool paused = false;
-
     private bool isPlaying = false;
     private bool isRecording = false;
 
@@ -45,12 +45,8 @@ public class Recordable : NetworkBehaviour
 
     #region MonoBehavior
 
-    [Server]
     private void Start()
     {
-        targetRecordings = new Dictionary<GameObject, Recording>();
-        targetProxies = new Dictionary<GameObject, GameObject>();
-
         // register playback and recording handlers with the RecordingManager
         RecordingManager.Instance.EventPlayStart += CmdHandlePlayStart;
         RecordingManager.Instance.EventPlayStop += CmdHandlePlayStop;
@@ -58,23 +54,18 @@ public class Recordable : NetworkBehaviour
         RecordingManager.Instance.EventRecordStop += CmdHandleRecordStop;
         RecordingManager.Instance.EventPlaybackSpeed += CmdHandlePlaybackSpeedChange;
         RecordingManager.Instance.EventPaused += CmdHandlePaused;
-
-        CmdSpawnPrefab();
     }
 
-    private void OnDestroy()
+    public override void OnStartServer()
     {
-        // destroy proxy
-        if (isServer)
+        targetRecordings = new Dictionary<GameObject, Recording>();
+        proxies = new Dictionary<GameObject, GameObject>();
+        foreach (var target in targets)
         {
-            foreach (var proxy in targetProxies.Values)
-            {
-                NetworkServer.Destroy(proxy);
-            }
+            // create new recording for target
+            targetRecordings[target] = new Recording(target.name);
         }
     }
-
-    #endregion
 
     [ServerCallback]
     private void Update()
@@ -93,7 +84,7 @@ public class Recordable : NetworkBehaviour
                 {
                     //transformData = targetRecordings[target].Previous();
                 }
-                transformData.ToTransform(targetProxies[target].transform);
+                transformData.ToTransform(proxies[target].transform);
             }
         }
         else if (isRecording)
@@ -121,14 +112,20 @@ public class Recordable : NetworkBehaviour
         }
     }
 
+    #endregion
+
+    public void AddProxy(GameObject target, GameObject proxy)
+    {
+        proxies[target] = proxy;
+        Debug.Log(gameObject.name + " added " + target.name + " " + proxy.name);
+    }
+
     #region Event Handlers
 
     [Server]
     private void CmdHandlePlayStart()
     {
         playbackStartTime = Time.realtimeSinceStartup;
-        targetProxies.Values.ToList().ForEach(p => p.SetActive(true));
-        RpcEnableProxies(ProxyNetIds());
         isPlaying = true;
     }
 
@@ -136,9 +133,6 @@ public class Recordable : NetworkBehaviour
     private void CmdHandlePlayStop()
     {
         isPlaying = false;
-        // disable proxy
-        targetProxies.Values.ToList().ForEach(p => p.SetActive(false));
-        RpcDisableProxies(ProxyNetIds());
         // reset recording position
         targetRecordings.Values.ToList().ForEach(r => r.Stop());
     }
@@ -164,95 +158,11 @@ public class Recordable : NetworkBehaviour
         playbackSpeed = speed;
     }
 
+    [Server]
     private void CmdHandlePaused(bool value)
     {
         paused = value;
     }
 
     #endregion
-
-    [Command]
-    private void CmdSpawnPrefab()
-    {
-        var proxyMaterial = Resources.Load(RecordingManager.Instance.ProxyMaterialName(), typeof(Material)) as Material;
-
-        foreach (var target in targets)
-        {
-            // create new recording for target
-            targetRecordings[target] = new Recording(target.name);
-
-            // create and spawn proxy
-            var proxy = Instantiate(target);
-            var renderers = proxy.GetComponentsInChildren<Renderer>();
-            foreach (var renderer in renderers)
-            {
-                renderer.material = proxyMaterial;
-            }
-
-            // remove all components we don't need
-            var components = proxy.GetComponentsInChildren<Component>();
-            foreach (var component in components)
-            {
-                if (component is MeshFilter
-                    || component is MeshRenderer
-                    || component is NetworkIdentity
-                    || component is NetworkTransform
-                    || component is Transform)
-                {
-                    continue;
-                }
-                else
-                {
-                    if (component is Behaviour)
-                    {
-                        ((Behaviour)component).enabled = false;
-                    }
-                    else
-                    {
-                        Destroy(component);
-                    }
-                }
-            }
-
-            // Add a NetworkIdentity to this component if it doesn't have one.
-            // This will most likely happen when the target is a child of a prefab.
-            var netID = proxy.GetComponent<NetworkIdentity>();
-            if (netID == null)
-            {
-                proxy.AddComponent<NetworkIdentity>();
-            }
-
-            // don't make it active until playback
-            proxy.SetActive(false);
-            ClientScene.RegisterPrefab(proxy);
-            NetworkServer.Spawn(proxy);
-            // set the proxy mapping
-            targetProxies[target] = proxy;
-        }
-
-        RpcDisableProxies(ProxyNetIds());
-    }
-
-    private NetworkInstanceId[] ProxyNetIds()
-    {
-        return (from proxy in targetProxies.Values select proxy.GetComponent<NetworkIdentity>().netId).ToArray();
-    }
-
-    [ClientRpc]
-    private void RpcDisableProxies(NetworkInstanceId[] netIds)
-    {
-        foreach (var netId in netIds)
-        {
-            ClientScene.FindLocalObject(netId).gameObject.SetActive(false);
-        }
-    }
-
-    [ClientRpc]
-    private void RpcEnableProxies(NetworkInstanceId[] netIds)
-    {
-        foreach (var netId in netIds)
-        {
-            ClientScene.FindLocalObject(netId).gameObject.SetActive(false);
-        }
-    }
 }
