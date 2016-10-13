@@ -10,20 +10,39 @@ public class ProxySpawner : NetworkBehaviour
     private RecordingManager manager;
 
     private IList<GameObject> proxies;
+    private Material proxyMaterial;
 
     public override void OnStartServer()
     {
-        recordables = FindObjectsOfType<Recordable>();
         manager = FindObjectOfType<RecordingManager>();
         proxies = new List<GameObject>();
 
-        var proxyMaterial = Resources.Load(manager.ProxyMaterialName(), typeof(Material)) as Material;
+        proxyMaterial = Resources.Load(manager.ProxyMaterialName(), typeof(Material)) as Material;
 
         manager.EventPlayStart += OnPlayStart;
         manager.EventPlayStop += OnPlayStop;
+    }
+
+    public override void OnStartClient()
+    {
+        CmdRespawn();
+    }
+
+    [Command]
+    public void CmdRespawn()
+    {
+        foreach (var proxy in proxies)
+        {
+            ClientScene.UnregisterPrefab(proxy);
+            NetworkServer.Destroy(proxy);
+        }
+        proxies.Clear();
+        recordables = FindObjectsOfType<Recordable>();
 
         foreach (var recordable in recordables)
         {
+            recordable.ClearProxies();
+
             foreach (var target in recordable.Targets)
             {
                 // create and spawn proxy
@@ -49,16 +68,6 @@ public class ProxySpawner : NetworkBehaviour
                     else
                     {
                         Destroy(component);
-                        /*
-                        if (component is Behaviour)
-                        {
-                            ((Behaviour)component).enabled = false;
-                        }
-                        else
-                        {
-                            Destroy(component);
-                        }
-                        */
                     }
                 }
 
@@ -83,18 +92,21 @@ public class ProxySpawner : NetworkBehaviour
         RpcDisableProxies(ProxyNetIds());
     }
 
+    [Server]
     private void OnPlayStart()
     {
         proxies.ToList().ForEach(p => p.SetActive(true));
         RpcEnableProxies(ProxyNetIds());
     }
 
+    [Server]
     private void OnPlayStop()
     {
         proxies.ToList().ForEach(p => p.SetActive(false));
         RpcDisableProxies(ProxyNetIds());
     }
 
+    [Server]
     private NetworkInstanceId[] ProxyNetIds()
     {
         return (from proxy in proxies select proxy.GetComponent<NetworkIdentity>().netId).ToArray();
@@ -114,7 +126,7 @@ public class ProxySpawner : NetworkBehaviour
     {
         foreach (var netId in netIds)
         {
-            ClientScene.FindLocalObject(netId).gameObject.SetActive(false);
+            ClientScene.FindLocalObject(netId).gameObject.SetActive(true);
         }
     }
 

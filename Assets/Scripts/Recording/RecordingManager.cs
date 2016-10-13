@@ -155,7 +155,7 @@ public class RecordingManager : NetworkBehaviour
 
     #endregion
 
-    #region MonoBehaviour
+    #region NetworkBehaviour
 
     public override void OnStartServer()
     {
@@ -178,9 +178,6 @@ public class RecordingManager : NetworkBehaviour
         }
     }
 
-    #endregion
-
-    #region NetworkBehaviour
 
     public override void OnStartClient()
     {

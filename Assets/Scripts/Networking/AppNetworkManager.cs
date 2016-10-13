@@ -88,11 +88,6 @@ public class AppNetworkManager : VoiceChatNetworkManager
         }
     }
 
-    public override void OnClientSceneChanged(NetworkConnection conn)
-    {
-        //base.OnClientSceneChanged(conn);
-    }
-
     public void StartGame()
     {
         singleton.StartHost();

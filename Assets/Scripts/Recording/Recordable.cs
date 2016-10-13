@@ -153,6 +153,11 @@ public class Recordable : NetworkBehaviour
         Debug.Log(gameObject.name + " added " + target.Value + " " + proxy.Value);
     }
 
+    public void ClearProxies()
+    {
+        proxies.Clear();
+    }
+
     private NetworkInstanceId GetProxyForTarget(NetworkInstanceId netId)
     {
         return (from proxy in proxies where proxy.target.Value == netId.Value select proxy.proxy).First();
