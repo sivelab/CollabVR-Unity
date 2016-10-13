@@ -17,7 +17,7 @@ public class ProxySpawner : NetworkBehaviour
         manager = FindObjectOfType<RecordingManager>();
         proxies = new List<GameObject>();
 
-        var proxyMaterial = Resources.Load(RecordingManager.Instance.ProxyMaterialName(), typeof(Material)) as Material;
+        var proxyMaterial = Resources.Load(manager.ProxyMaterialName(), typeof(Material)) as Material;
 
         manager.EventPlayStart += OnPlayStart;
         manager.EventPlayStop += OnPlayStop;
@@ -48,6 +48,8 @@ public class ProxySpawner : NetworkBehaviour
                     }
                     else
                     {
+                        Destroy(component);
+                        /*
                         if (component is Behaviour)
                         {
                             ((Behaviour)component).enabled = false;
@@ -56,6 +58,7 @@ public class ProxySpawner : NetworkBehaviour
                         {
                             Destroy(component);
                         }
+                        */
                     }
                 }
 
@@ -73,7 +76,7 @@ public class ProxySpawner : NetworkBehaviour
                 NetworkServer.Spawn(proxy);
                 // set the proxy mapping
                 proxies.Add(proxy);
-                recordable.AddProxy(target, proxy);
+                recordable.AddProxy(target.GetComponent<NetworkIdentity>().netId, proxy.GetComponent<NetworkIdentity>().netId);
             }
         }
 

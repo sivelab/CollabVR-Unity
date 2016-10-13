@@ -5,11 +5,26 @@
 // client would see them on the network.
 //
 
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.Networking;
+
+[Serializable]
+public struct RecordingProxy
+{
+    public NetworkInstanceId target;
+    public NetworkInstanceId proxy;
+
+    public RecordingProxy(NetworkInstanceId t, NetworkInstanceId p)
+    {
+        target = t;
+        proxy = p;
+    }
+}
+public class ProxyList : SyncListStruct<RecordingProxy> { }
 
 public class Recordable : NetworkBehaviour
 {
@@ -28,14 +43,17 @@ public class Recordable : NetworkBehaviour
     /// <summary>
     /// The mapping of GameObjects to their Recordings.
     /// </summary>
-    private IDictionary<GameObject, Recording> targetRecordings;
-    private IDictionary<GameObject, GameObject> proxies;
+    private IDictionary<NetworkInstanceId, Recording> targetRecordings;
     private float playbackStartTime;
     private float recordingStartTime;
     private float playbackSpeed = 1f;
     private bool paused = false;
     private bool isPlaying = false;
     private bool isRecording = false;
+
+    private RecordingManager manager;
+
+    private ProxyList proxies = new ProxyList();
 
     public ICollection<Recording> Recordings
     {
@@ -45,26 +63,39 @@ public class Recordable : NetworkBehaviour
 
     #region MonoBehavior
 
-    private void Start()
+    public void Start()
     {
-        // register playback and recording handlers with the RecordingManager
-        RecordingManager.Instance.EventPlayStart += CmdHandlePlayStart;
-        RecordingManager.Instance.EventPlayStop += CmdHandlePlayStop;
-        RecordingManager.Instance.EventRecordStart += CmdHandleRecordStart;
-        RecordingManager.Instance.EventRecordStop += CmdHandleRecordStop;
-        RecordingManager.Instance.EventPlaybackSpeed += CmdHandlePlaybackSpeedChange;
-        RecordingManager.Instance.EventPaused += CmdHandlePaused;
-    }
+        manager = FindObjectOfType<RecordingManager>();
 
-    public override void OnStartServer()
-    {
-        targetRecordings = new Dictionary<GameObject, Recording>();
-        proxies = new Dictionary<GameObject, GameObject>();
+        // register playback and recording handlers with the RecordingManager
+        manager.EventPlayStart += CmdHandlePlayStart;
+        manager.EventPlayStop += CmdHandlePlayStop;
+        manager.EventRecordStart += CmdHandleRecordStart;
+        manager.EventRecordStop += CmdHandleRecordStop;
+        manager.EventPlaybackSpeed += CmdHandlePlaybackSpeedChange;
+        manager.EventPaused += CmdHandlePaused;
+
+        targetRecordings = new Dictionary<NetworkInstanceId, Recording>();
+        //localProxies = new Dictionary<GameObject, GameObject>();
         foreach (var target in targets)
         {
             // create new recording for target
-            targetRecordings[target] = new Recording(target.name);
+            targetRecordings[target.GetComponent<NetworkIdentity>().netId] = new Recording(target.name);
         }
+    }
+
+    private void OnDestroy()
+    {
+        if (manager == null)
+        {
+            return;
+        }
+        manager.EventPlayStart -= CmdHandlePlayStart;
+        manager.EventPlayStop -= CmdHandlePlayStop;
+        manager.EventRecordStart -= CmdHandleRecordStart;
+        manager.EventRecordStop -= CmdHandleRecordStop;
+        manager.EventPlaybackSpeed -= CmdHandlePlaybackSpeedChange;
+        manager.EventPaused -= CmdHandlePaused;
     }
 
     [ServerCallback]
@@ -75,16 +106,18 @@ public class Recordable : NetworkBehaviour
             var timestamp = (Time.realtimeSinceStartup - playbackStartTime) * playbackSpeed;
             foreach (var target in targets)
             {
-                var transformData = targetRecordings[target].Current();
+                var netId = target.GetComponent<NetworkIdentity>().netId;
+                var transformData = targetRecordings[netId].Current();
                 if (timestamp > 0)
                 {
-                    transformData = targetRecordings[target].Next(timestamp);
+                    transformData = targetRecordings[netId].Next(timestamp);
                 }
                 else
                 {
                     //transformData = targetRecordings[target].Previous();
                 }
-                transformData.ToTransform(proxies[target].transform);
+                var proxy = NetworkServer.FindLocalObject(GetProxyForTarget(netId));
+                transformData.ToTransform(proxy.transform);
             }
         }
         else if (isRecording)
@@ -92,7 +125,7 @@ public class Recordable : NetworkBehaviour
             foreach (var target in targets)
             {
                 // check if the recordables tranform has moved enough to be worth recording
-                var recording = targetRecordings[target];
+                var recording = targetRecordings[target.GetComponent<NetworkIdentity>().netId];
                 if (recording.data.Count != 0)
                 {
                     var lastTransform = recording.data[recording.data.Count - 1];
@@ -114,10 +147,15 @@ public class Recordable : NetworkBehaviour
 
     #endregion
 
-    public void AddProxy(GameObject target, GameObject proxy)
+    public void AddProxy(NetworkInstanceId target, NetworkInstanceId proxy)
     {
-        proxies[target] = proxy;
-        Debug.Log(gameObject.name + " added " + target.name + " " + proxy.name);
+        proxies.Add(new RecordingProxy(target, proxy));
+        Debug.Log(gameObject.name + " added " + target.Value + " " + proxy.Value);
+    }
+
+    private NetworkInstanceId GetProxyForTarget(NetworkInstanceId netId)
+    {
+        return (from proxy in proxies where proxy.target.Value == netId.Value select proxy.proxy).First();
     }
 
     #region Event Handlers
@@ -127,6 +165,7 @@ public class Recordable : NetworkBehaviour
     {
         playbackStartTime = Time.realtimeSinceStartup;
         isPlaying = true;
+        Debug.Log(gameObject.name + " is playing.");
     }
 
     [Server]
@@ -135,6 +174,7 @@ public class Recordable : NetworkBehaviour
         isPlaying = false;
         // reset recording position
         targetRecordings.Values.ToList().ForEach(r => r.Stop());
+        Debug.Log(gameObject.name + " is not playing.");
     }
 
     [Server]
@@ -144,12 +184,14 @@ public class Recordable : NetworkBehaviour
         targetRecordings.Values.ToList().ForEach(r => r.data.Clear());
         recordingStartTime = Time.realtimeSinceStartup;
         isRecording = true;
+        Debug.Log(gameObject.name + " is recording.");
     }
 
     [Server]
     private void CmdHandleRecordStop()
     {
         isRecording = false;
+        Debug.Log(gameObject.name + " is not recording.");
     }
 
     [Server]

@@ -8,23 +8,6 @@ using System.Text;
 
 public class RecordingManager : NetworkBehaviour
 {
-    #region Instance
-    private static RecordingManager instance;
-
-    public static RecordingManager Instance
-    {
-        get
-        {
-            if (instance == null)
-            {
-                instance = FindObjectOfType<RecordingManager>();
-            }
-
-            return instance;
-        }
-    }
-    #endregion
-
     // We need these specific delegates because UNet will complain about
     // using generic parameters with ActionEvents as SyncEvents.
     public delegate void PlaybackSpeedDelegate(float value);
@@ -174,17 +157,8 @@ public class RecordingManager : NetworkBehaviour
 
     #region MonoBehaviour
 
-    [Server]
-    private void Start()
+    public override void OnStartServer()
     {
-        if (instance != null && instance != this)
-        {
-            Destroy(this);
-            Debug.LogError("There is only one RecordingManager... and he does not share power.");
-            return;
-        }
-
-        instance = this;
         isRecording = false;
         isPlaying = false;
         recordingsDirectory = Application.persistentDataPath + "/recordings/";
@@ -202,11 +176,6 @@ public class RecordingManager : NetworkBehaviour
         {
             recordingFiles.Add(file);
         }
-    }
-
-    private void OnDestroy()
-    {
-        instance = null;
     }
 
     #endregion
