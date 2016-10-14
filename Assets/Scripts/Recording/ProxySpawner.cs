@@ -4,37 +4,39 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 
+public class NetIdList : SyncListStruct<NetworkInstanceId> { }
+
 public class ProxySpawner : NetworkBehaviour
 {
     private Recordable[] recordables;
     private RecordingManager manager;
 
-    private IList<GameObject> proxies;
+    private NetIdList proxies = new NetIdList();
     private Material proxyMaterial;
 
-    public override void OnStartServer()
+    public void Start()
     {
+        if (!isLocalPlayer)
+        {
+            return;
+        }
+
         manager = FindObjectOfType<RecordingManager>();
-        proxies = new List<GameObject>();
-
-        proxyMaterial = Resources.Load(manager.ProxyMaterialName(), typeof(Material)) as Material;
-
         manager.EventPlayStart += OnPlayStart;
         manager.EventPlayStop += OnPlayStop;
-    }
 
-    public override void OnStartClient()
-    {
         CmdRespawn();
     }
 
     [Command]
     public void CmdRespawn()
     {
+        manager = FindObjectOfType<RecordingManager>();
+        proxyMaterial = Resources.Load(manager.ProxyMaterialName(), typeof(Material)) as Material;
         foreach (var proxy in proxies)
         {
-            ClientScene.UnregisterPrefab(proxy);
-            NetworkServer.Destroy(proxy);
+            ClientScene.UnregisterPrefab(NetworkServer.FindLocalObject(proxy));
+            NetworkServer.Destroy(NetworkServer.FindLocalObject(proxy));
         }
         proxies.Clear();
         recordables = FindObjectsOfType<Recordable>();
@@ -84,47 +86,41 @@ public class ProxySpawner : NetworkBehaviour
                 ClientScene.RegisterPrefab(proxy);
                 NetworkServer.Spawn(proxy);
                 // set the proxy mapping
-                proxies.Add(proxy);
+                proxies.Add(proxy.GetComponent<NetworkIdentity>().netId);
                 recordable.AddProxy(target.GetComponent<NetworkIdentity>().netId, proxy.GetComponent<NetworkIdentity>().netId);
             }
         }
 
-        RpcDisableProxies(ProxyNetIds());
+        RpcDisableProxies();
     }
 
     [Server]
     private void OnPlayStart()
     {
-        proxies.ToList().ForEach(p => p.SetActive(true));
-        RpcEnableProxies(ProxyNetIds());
+        proxies.ToList().ForEach(p => NetworkServer.FindLocalObject(p).SetActive(true));
+        RpcEnableProxies();
     }
 
     [Server]
     private void OnPlayStop()
     {
-        proxies.ToList().ForEach(p => p.SetActive(false));
-        RpcDisableProxies(ProxyNetIds());
-    }
-
-    [Server]
-    private NetworkInstanceId[] ProxyNetIds()
-    {
-        return (from proxy in proxies select proxy.GetComponent<NetworkIdentity>().netId).ToArray();
+        proxies.ToList().ForEach(p => NetworkServer.FindLocalObject(p).SetActive(false));
+        RpcDisableProxies();
     }
 
     [ClientRpc]
-    private void RpcDisableProxies(NetworkInstanceId[] netIds)
+    private void RpcDisableProxies()
     {
-        foreach (var netId in netIds)
+        foreach (var netId in proxies)
         {
             ClientScene.FindLocalObject(netId).gameObject.SetActive(false);
         }
     }
 
     [ClientRpc]
-    private void RpcEnableProxies(NetworkInstanceId[] netIds)
+    private void RpcEnableProxies()
     {
-        foreach (var netId in netIds)
+        foreach (var netId in proxies)
         {
             ClientScene.FindLocalObject(netId).gameObject.SetActive(true);
         }

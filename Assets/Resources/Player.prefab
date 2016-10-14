@@ -129,6 +129,7 @@ GameObject:
   - 114: {fileID: 11445366}
   - 114: {fileID: 11433622}
   - 114: {fileID: 11430100}
+  - 114: {fileID: 114000012189720310}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -1272,3 +1273,14 @@ MeshFilter:
   m_PrefabInternal: {fileID: 100100000}
   m_GameObject: {fileID: 1000012581166836}
   m_Mesh: {fileID: 4300004, guid: 72f2afce364feb543bd7160810fdd2f9, type: 3}
+--- !u!114 &114000012189720310
+MonoBehaviour:
+  m_ObjectHideFlags: 1
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 100100000}
+  m_GameObject: {fileID: 181368}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1cf262902f3a47941a29bb276f622222, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 

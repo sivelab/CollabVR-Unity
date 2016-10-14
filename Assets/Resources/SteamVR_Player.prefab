@@ -108,6 +108,7 @@ GameObject:
   - 114: {fileID: 11490706}
   - 114: {fileID: 11455588}
   - 114: {fileID: 114000012317351336}
+  - 114: {fileID: 114000012730437756}
   m_Layer: 0
   m_Name: SteamVR_Player
   m_TagString: Untagged
@@ -1241,6 +1242,17 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   trigger: {fileID: 114000012923397924}
   networkIdentity: {fileID: 11493464}
+--- !u!114 &114000012730437756
+MonoBehaviour:
+  m_ObjectHideFlags: 1
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 100100000}
+  m_GameObject: {fileID: 163372}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1cf262902f3a47941a29bb276f622222, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
 --- !u!114 &114000012923397924
 MonoBehaviour:
   m_ObjectHideFlags: 1
