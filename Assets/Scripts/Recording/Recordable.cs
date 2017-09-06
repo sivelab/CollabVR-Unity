@@ -1,6 +1,6 @@
 ﻿//
 // Place this component on and GameObject you want the RecordingManager handle recording.
-// So far it works by only recording the transform on the object as it exists on the sever, 
+// So far it works by only recording the transform on the object as it exists on the sever,
 // since the RecordingManager is serverOnly. This ensures we record those objects as any
 // client would see them on the network.
 //
@@ -37,7 +37,10 @@ public class Recordable : NetworkBehaviour
     private GameObject[] targets;
     public GameObject[] Targets
     {
-        get { return targets; }
+        get
+        {
+            return targets;
+        }
     }
 
     /// <summary>
@@ -57,7 +60,10 @@ public class Recordable : NetworkBehaviour
 
     public ICollection<Recording> Recordings
     {
-        get { return targetRecordings.Values; }
+        get
+        {
+            return targetRecordings.Values;
+        }
         //set { recording = value; }
     }
 
@@ -112,10 +118,6 @@ public class Recordable : NetworkBehaviour
                 {
                     transformData = targetRecordings[netId].Next(timestamp);
                 }
-                else
-                {
-                    //transformData = targetRecordings[target].Previous();
-                }
                 var proxy = NetworkServer.FindLocalObject(GetProxyForTarget(netId));
                 transformData.ToTransform(proxy.transform);
             }
@@ -130,17 +132,14 @@ public class Recordable : NetworkBehaviour
                 {
                     var lastTransform = recording.data[recording.data.Count - 1];
                     var difference = Vector3.Distance(lastTransform.position, transform.localPosition)
-                        + Quaternion.Angle(lastTransform.rotation, transform.rotation);
+                                     + Quaternion.Angle(lastTransform.rotation, transform.rotation);
 
-                    if (difference > deltaThreshhold)
+                    if (!difference > deltaThreshhold)
                     {
-                        recording.data.Add(new TransformData(target.transform, Time.realtimeSinceStartup - recordingStartTime));
+                        return;
                     }
                 }
-                else
-                {
-                    recording.data.Add(new TransformData(target.transform, Time.realtimeSinceStartup - recordingStartTime));
-                }
+                recording.data.Add(new TransformData(target.transform, Time.realtimeSinceStartup - recordingStartTime));
             }
         }
     }

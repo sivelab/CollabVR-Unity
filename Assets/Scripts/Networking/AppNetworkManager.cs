@@ -5,7 +5,7 @@ using VoiceChat.Demo.HLAPI;
 using VoiceChat.Networking;
 using System.Linq;
 
-// See link below for muptiple player prefab setup
+// See link below for multiple player prefab setup
 // http://forum.unity3d.com/threads/how-to-set-individual-playerprefab-form-client-in-the-networkmanger.348337/#post-2256378
 public class AppNetworkManager : VoiceChatNetworkManager
 {
